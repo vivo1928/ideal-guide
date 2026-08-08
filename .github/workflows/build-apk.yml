@@ -12,6 +12,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,3 +54,26 @@ jobs:
         with:
           name: domestic-music-source-apk
           path: build/out/domestic-music-source.apk
+
+      - name: Publish Release (keep only latest APK)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: v2.0.3
+        run: |
+          RELEASE_NAME="国内聚合播放器 (release签名)"
+          NOTES="Release 签名版 APK，自动构建产物。证书指纹 FC:26:37:25:BB:CE:AC:E7:89:28:95:54:64:DE:88:5E:E4:53:A1:06:D9:BC:01:27:ED:29:2E:4B:2C:C8:72:78"
+          # 若 Release 已存在，删除其中所有旧 asset，只保留最新
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG 已存在，清理旧资产"
+            gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | while read -r asset; do
+              echo "  删除旧资产: $asset"
+              gh release delete-asset "$RELEASE_TAG" "$asset" --yes >/dev/null 2>&1 || true
+            done
+            gh release upload "$RELEASE_TAG" build/out/domestic-music-source.apk --clobber
+          else
+            echo "创建 Release $RELEASE_TAG"
+            gh release create "$RELEASE_TAG" build/out/domestic-music-source.apk \
+              --title "$RELEASE_NAME" --notes "$NOTES"
+          fi
+          echo "Release 已更新，仅保留最新 APK"
