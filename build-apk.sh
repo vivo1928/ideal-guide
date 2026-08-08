@@ -97,5 +97,7 @@ fi
 
 OUT_DIR="${OUT_DIR:-build/out}"
 mkdir -p "$OUT_DIR"
-cp build/out/domestic-music-source.apk "$OUT_DIR/domestic-music-source.apk"
+if [ "$OUT_DIR" != "build/out" ]; then
+  cp build/out/domestic-music-source.apk "$OUT_DIR/domestic-music-source.apk"
+fi
 echo "APK built successfully: $OUT_DIR/domestic-music-source.apk"
