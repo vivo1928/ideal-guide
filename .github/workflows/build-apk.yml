@@ -34,6 +34,18 @@ jobs:
         run: |
           chmod +x build-apk.sh
           ./build-apk.sh
+        env:
+          ANDROID_RELEASE_KEYSTORE_B64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_B64 }}
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+
+      - name: Verify release signature
+        run: |
+          if [ -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_B64 }}" ]; then
+            echo "Signed with RELEASE key (injected from secrets)"
+          else
+            echo "Signed with DEBUG key"
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

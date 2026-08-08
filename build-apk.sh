@@ -59,25 +59,37 @@ fi
 cp build/out/classes.dex build/classes.dex
 (cd build && zip -q out/app-unsigned.apk classes.dex)
 
-if [ ! -f build/debug.keystore ]; then
-  keytool -genkeypair -v \
-    -keystore build/debug.keystore \
-    -storepass android \
-    -keypass android \
-    -alias domesticmusic \
-    -keyalg RSA \
-    -keysize 2048 \
-    -validity 10000 \
-    -dname "CN=Domestic Music Source, OU=TRAE, O=TRAE, L=Local, S=Local, C=CN" >/dev/null
+if [ -n "${ANDROID_RELEASE_KEYSTORE_B64:-}" ] && [ -n "${ANDROID_RELEASE_KEYSTORE_PASSWORD:-}" ]; then
+  # release 签名：keystore 从环境变量(base64)注入，不写入仓库
+  SIGN_KEYSTORE="build/release.keystore"
+  SIGN_ALIAS="${ANDROID_RELEASE_KEY_ALIAS:-domesticmusic}"
+  SIGN_PASS="${ANDROID_RELEASE_KEYSTORE_PASSWORD}"
+  echo "$ANDROID_RELEASE_KEYSTORE_B64" | base64 -d > "$SIGN_KEYSTORE"
+else
+  # debug 签名：本地临时生成
+  SIGN_KEYSTORE="build/debug.keystore"
+  SIGN_ALIAS="domesticmusic"
+  SIGN_PASS="android"
+  if [ ! -f "$SIGN_KEYSTORE" ]; then
+    keytool -genkeypair -v \
+      -keystore "$SIGN_KEYSTORE" \
+      -storepass "$SIGN_PASS" \
+      -keypass "$SIGN_PASS" \
+      -alias "$SIGN_ALIAS" \
+      -keyalg RSA \
+      -keysize 2048 \
+      -validity 10000 \
+      -dname "CN=Domestic Music Source, OU=TRAE, O=TRAE, L=Local, S=Local, C=CN" >/dev/null
+  fi
 fi
 
 "$ZIPALIGN" -f 4 build/out/app-unsigned.apk build/out/domestic-music-source-aligned.apk
 
 "$APKSIGNER" sign \
-  --ks build/debug.keystore \
-  --ks-key-alias domesticmusic \
-  --ks-pass pass:android \
-  --key-pass pass:android \
+  --ks "$SIGN_KEYSTORE" \
+  --ks-key-alias "$SIGN_ALIAS" \
+  --ks-pass "pass:$SIGN_PASS" \
+  --key-pass "pass:$SIGN_PASS" \
   --out build/out/domestic-music-source.apk \
   build/out/domestic-music-source-aligned.apk
 
@@ -85,5 +97,5 @@ fi
 
 OUT_DIR="${OUT_DIR:-build/out}"
 mkdir -p "$OUT_DIR"
-cp build/out/domestic-music-source.apk "$OUT_DIR/domestic-music-source-v2.0.3.apk"
-echo "APK built successfully: $OUT_DIR/domestic-music-source-v2.0.3.apk"
+cp build/out/domestic-music-source.apk "$OUT_DIR/domestic-music-source.apk"
+echo "APK built successfully: $OUT_DIR/domestic-music-source.apk"
